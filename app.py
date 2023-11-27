@@ -7,19 +7,19 @@ from PIL import Image
 import gradio as gr
 
 
-def preprocess_image(image):
+def preprocess_image(image, h, w):
     img_multiple_of = 4
-    h,w = image.shape[0], image.shape[1]
+    h,w = h, w
     H,W = (h//img_multiple_of)*img_multiple_of+1, (w//img_multiple_of)*img_multiple_of+1
     padh = H-h if h%img_multiple_of!=0 else 0
     padw = W-w if w%img_multiple_of!=0 else 0
-    image = cv2.copyMakeBorder(image, 0,padw,0,padh, cv2.BORDER_REFLECT)
+    image = cv2.copyMakeBorder(image, 0,padh,0,padw, cv2.BORDER_REFLECT)
     image = tf.keras.preprocessing.image.img_to_array(image)
     image = image.astype("float32") / 255.0
     image = np.expand_dims(image, axis=0)
     return image
 
-def postprocess_image(model_output, type):
+def postprocess_image(model_output, h, w, type):
     tf.experimental.numpy.experimental_enable_numpy_behavior(prefer_float32=True)
     model_output = model_output * 255.0
     model_output = model_output.clip(0, 255)
@@ -27,11 +27,13 @@ def postprocess_image(model_output, type):
         image = model_output[0].reshape(
             (np.shape(model_output)[1], np.shape(model_output)[2], 3)
         )
+        image = image[:h,:w,:]
         image = Image.fromarray(np.uint8(image))
     elif type == "frame":
         image = model_output.reshape(
             (np.shape(model_output)[0], np.shape(model_output)[1], 3)
         )
+        image = image[:h,:w,:]
         image = np.uint8(image)
     return image
 
@@ -50,9 +52,11 @@ def infer(img, select_service, batch_size=1):
 #Interface fuction
 def img_infer(select_service, input_img):
     input_img = input_img.convert('RGB')
-    preprocessed_img = preprocess_image(input_img)
+    input_img = asarray(input_img)
+    h,w = image.shape[0], image.shape[1]
+    preprocessed_img = preprocess_image(input_img, h, w)
     model_output = infer(preprocessed_img, select_service)
-    post_processed_image = postprocess_image(model_output, type="img")
+    post_processed_image = postprocess_image(model_output, h, w, type="img")
     return post_processed_image
 
 
@@ -76,15 +80,16 @@ def vid_infer(select_service, input_vid):
         if not ret:
             break
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        batch_frame.append(preprocess_image(frame))
-        #enhance frame on batch
-        enhance_batch_frame = infer(np.vstack(batch_frame), select_service, batch_size=2)
-        for idx, enhance_frame in enumerate(enhance_batch_frame):
-            enhance_frame = postprocess_image(enhance_frame, type="frame")
-            enhance_vid.write(cv2.cvtColor(enhance_frame, cv2.COLOR_RGB2BGR))
-            print(str(idx) + '/' + str(frame_count) + ' Complete!')
-            print()
-            batch_frame = []
+        h,w = frame.shape[0], frame.shape[1]
+        batch_frame.append(preprocess_image(frame, h, w))
+    #enhance frame on batch
+    enhance_batch_frame = infer(np.vstack(batch_frame), select_service, batch_size=2)
+    for idx, enhance_frame in enumerate(enhance_batch_frame):
+        enhance_frame = postprocess_image(enhance_frame, h, w, type="frame")
+        enhance_vid.write(cv2.cvtColor(enhance_frame, cv2.COLOR_RGB2BGR))
+        print(str(idx) + '/' + str(frame_count) + ' Complete!')
+        print()
+    batch_frame = []
             
     enhance_vid.release()
     original_vid.release()

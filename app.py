@@ -83,7 +83,7 @@ def vid_infer(select_service, input_vid):
         h,w = frame.shape[0], frame.shape[1]
         batch_frame.append(preprocess_image(frame, h, w))
     #enhance frame on batch
-    enhance_batch_frame = infer(np.vstack(batch_frame), select_service, batch_size=2)
+    enhance_batch_frame = infer(np.vstack(batch_frame), select_service, batch_size=1)
     for idx, enhance_frame in enumerate(enhance_batch_frame):
         enhance_frame = postprocess_image(enhance_frame, h, w, type="frame")
         enhance_vid.write(cv2.cvtColor(enhance_frame, cv2.COLOR_RGB2BGR))

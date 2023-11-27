@@ -1,11 +1,19 @@
 import custom_modules
-
-
-AUTOTUNE = tf.data.AUTOTUNE
+import tensorflow as tf
+from tensorflow import keras
+import numpy as np
+import cv2
+from PIL import Image
+import gradio as gr
 
 
 def preprocess_image(image):
-    image = image.resize(((image.width//4)*4, (image.height//4)*4))
+    img_multiple_of = 4
+    h,w = image.shape[0], image.shape[1]
+    H,W = (h//img_multiple_of)*img_multiple_of+1, (w//img_multiple_of)*img_multiple_of+1
+    padh = H-h if h%img_multiple_of!=0 else 0
+    padw = W-w if w%img_multiple_of!=0 else 0
+    image = cv2.copyMakeBorder(image, 0,padw,0,padh, cv2.BORDER_REFLECT)
     image = tf.keras.preprocessing.image.img_to_array(image)
     image = image.astype("float32") / 255.0
     image = np.expand_dims(image, axis=0)
@@ -27,13 +35,13 @@ def postprocess_image(model_output, type):
         image = np.uint8(image)
     return image
 
-def infer(img, select_service):
+def infer(img, select_service, batch_size=1):
     if "Light Enhance" in select_service:
-        img = lightEnhance_model.predict(img, batch_size=AUTOTUNE)
+        img = lightEnhance_model.predict(img, batch_size=batch_size)
     if "Denoising" in select_service:
-        img = denoise_model.predict(img, batch_size=AUTOTUNE)
+        img = denoise_model.predict(img, batch_size=batch_size)
     if "Super Resolution" in select_service:
-        img = superRes_model.predict(img, batch_size=AUTOTUNE)
+        img = superRes_model.predict(img, batch_size=batch_size)
     return img
 
 
@@ -70,7 +78,7 @@ def vid_infer(select_service, input_vid):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         batch_frame.append(preprocess_image(frame))
         #enhance frame on batch
-        enhance_batch_frame = infer(np.vstack(batch_frame), select_service)
+        enhance_batch_frame = infer(np.vstack(batch_frame), select_service, batch_size=2)
         for idx, enhance_frame in enumerate(enhance_batch_frame):
             enhance_frame = postprocess_image(enhance_frame, type="frame")
             enhance_vid.write(cv2.cvtColor(enhance_frame, cv2.COLOR_RGB2BGR))
@@ -85,16 +93,16 @@ def vid_infer(select_service, input_vid):
 
 
 
-example_imgs = [[["Light Enhance"],r'/example_imgs/lightEnhance_example1.png'], 
-                [["Super Resolution"], r'/example_imgs/superRes_example1.png'],
-                [["Denoising"], r'/example_imgs/denoing_example1.png']
+example_imgs = [[["Light Enhance"],'/content/Senior_Project_Web/example_imgs/lightEnhance_example1.png'], 
+                [["Super Resolution"], '/content/Senior_Project_Web/example_imgs/superRes_example1.png'],
+                [["Denoising"], '/content/Senior_Project_Web/example_imgs/denoing_example1.png']
 ]
 
-example_vids = [[["Super Resolution", "Denoising"], r'/example_vids/superRes_example1.mp4']]
+example_vids = [[["Super Resolution", "Denoising"], '/content/Senior_Project_Web/example_vids/superRes_example1.mp4']]
 
-lightEnhance_model = tf.keras.models.load_model(r"lightEnhance_testModel.keras", compile=False)
-superRes_model = tf.keras.models.load_model(r"superRes_testModel.keras", compile=False)
-denoise_model = tf.keras.models.load_model(r"denoising_testModel.keras", compile=False)
+lightEnhance_model = tf.keras.models.load_model("/content/Senior_Project_Web/lightEnhance_testModel.keras", compile=False)
+superRes_model = tf.keras.models.load_model("/content/Senior_Project_Web/superRes_testModel.keras", compile=False)
+denoise_model = tf.keras.models.load_model("/content/Senior_Project_Web/denoising_testModel.keras", compile=False)
 
 
 img_iface = gr.Interface(

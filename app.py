@@ -1,18 +1,10 @@
-import numpy as np
-import gradio as gr
-from PIL import Image
-import tensorflow as tf
-import keras
-import cv2
+import custom_modules
 
+AUTOTUNE = tf.data.AUTOTUNE
 
-def charbonnier_loss(y_true, y_pred):
-    return tf.reduce_mean(tf.sqrt(tf.square(y_true - y_pred) + tf.square(1e-3)))
-
-def peak_signal_noise_ratio(y_true, y_pred):
-    return tf.image.psnr(y_pred, y_true, max_val=255.0)
 
 def preprocess_image(image):
+    image = image.resize(((image.width//4)*4, (image.height//4)*4))
     image = tf.keras.preprocessing.image.img_to_array(image)
     image = image.astype("float32") / 255.0
     image = np.expand_dims(image, axis=0)
@@ -36,11 +28,11 @@ def postprocess_image(model_output, type):
 
 def infer(img, select_service):
     if "Light Enhance" in select_service:
-        img = lightEnhance_model(img, training=False)
-    if "Super Resolution" in select_service:
-        img = superRes_model(img, training=False)
+        img = lightEnhance_model.predict(img, batch_size=AUTOTUNE)
     if "Denoising" in select_service:
-        img = denoise_model(img, training=False)
+        img = denoise_model.predict(img, batch_size=AUTOTUNE)
+    if "Super Resolution" in select_service:
+        img = superRes_model.predict(img, batch_size=AUTOTUNE)
     return img
 
 
@@ -48,6 +40,7 @@ def infer(img, select_service):
 
 #Interface fuction
 def img_infer(select_service, input_img):
+    input_img = input_img.convert('RGB')
     preprocessed_img = preprocess_image(input_img)
     model_output = infer(preprocessed_img, select_service)
     post_processed_image = postprocess_image(model_output, type="img")
@@ -62,8 +55,6 @@ def initialize_output_vid(original_vid, output_name):
   return cv2.VideoWriter(output_name, fourcc, fps, (int(width), int(height)))
 
 def vid_infer(select_service, input_vid):
-    FRAME_BATCH = 2
-
     original_vid = cv2.VideoCapture(input_vid)
     frame_count = original_vid.get(cv2.CAP_PROP_FRAME_COUNT)
     enhance_vid = initialize_output_vid(original_vid, output_name='enhance_vid.mp4')
@@ -71,7 +62,6 @@ def vid_infer(select_service, input_vid):
     batch_frame = []
     control = -1
     for num in range(int(frame_count)):
-        control = (control+1) % FRAME_BATCH
         #prepare batch frame
         ret, frame = original_vid.read()
         if not ret:
@@ -79,14 +69,14 @@ def vid_infer(select_service, input_vid):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         batch_frame.append(preprocess_image(frame))
         #enhance frame on batch
-        if control==(FRAME_BATCH-1) or num==int(frame_count)-1:
-            enhance_batch_frame = infer(np.vstack(batch_frame), select_service)
-            for idx, enhance_frame in enumerate(enhance_batch_frame):
-                enhance_frame = postprocess_image(enhance_frame, type="frame")
-                enhance_vid.write(cv2.cvtColor(enhance_frame, cv2.COLOR_RGB2BGR))
-                print(str(num+idx-FRAME_BATCH+2) + '/' + str(frame_count) + ' Complete!')
-                print()
-                batch_frame = []
+        enhance_batch_frame = infer(np.vstack(batch_frame), select_service)
+        for idx, enhance_frame in enumerate(enhance_batch_frame):
+            enhance_frame = postprocess_image(enhance_frame, type="frame")
+            enhance_vid.write(cv2.cvtColor(enhance_frame, cv2.COLOR_RGB2BGR))
+            print(str(idx) + '/' + str(frame_count) + ' Complete!')
+            print()
+            batch_frame = []
+            
     enhance_vid.release()
     original_vid.release()
     cv2.destroyAllWindows()
@@ -94,16 +84,16 @@ def vid_infer(select_service, input_vid):
 
 
 
-example_imgs = [[["Light Enhance"],'./example_imgs/lightEnhance_example1.png'], 
-                [["Super Resolution"], './example_imgs/superRes_example1.png'],
-                [["Denoising"], './example_imgs/denoing_example1.png']
+example_imgs = [[["Light Enhance"],r'/example_imgs/lightEnhance_example1.png'], 
+                [["Super Resolution"], r'/example_imgs/superRes_example1.png'],
+                [["Denoising"], r'/example_imgs/denoing_example1.png']
 ]
 
-example_vids = [[["Super Resolution", "Denoising"], './example_vids/superRes_example1.mp4']]
+example_vids = [[["Super Resolution", "Denoising"], r'/example_vids/superRes_example1.mp4']]
 
-lightEnhance_model = tf.saved_model.load('./lightEnhance_11_8_2')
-superRes_model = tf.saved_model.load('./superRes_11_8_1')
-denoise_model = tf.saved_model.load('./denoise_11_8_1')
+lightEnhance_model = tf.keras.models.load_model(r"lightEnhance_testModel.keras", compile=False)
+superRes_model = tf.keras.models.load_model(r"superRes_testModel.keras", compile=False)
+denoise_model = tf.keras.models.load_model(r"denoising_testModel.keras", compile=False)
 
 
 img_iface = gr.Interface(
@@ -133,10 +123,4 @@ vid_iface = gr.Interface(
 
 demo = gr.TabbedInterface([img_iface, vid_iface], ["Image Enhancement", "Video Enhancement"])
 
-demo.launch(share=False)
-
-
-
-
-
-
+demo.launch(share=True)

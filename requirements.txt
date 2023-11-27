@@ -1,3 +1,7 @@
 keras 
 tensorflow
 opencv-python
+numpy
+'tensorflow-addons'
+transformers
+gradio

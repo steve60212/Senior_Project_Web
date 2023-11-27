@@ -10,7 +10,7 @@ import gradio as gr
 def preprocess_image(image, h, w):
     img_multiple_of = 4
     h,w = h, w
-    H,W = (h//img_multiple_of)*img_multiple_of+1, (w//img_multiple_of)*img_multiple_of+1
+    H,W = (h//img_multiple_of+1)*img_multiple_of, (w//img_multiple_of+1)*img_multiple_of
     padh = H-h if h%img_multiple_of!=0 else 0
     padw = W-w if w%img_multiple_of!=0 else 0
     image = cv2.copyMakeBorder(image, 0,padh,0,padw, cv2.BORDER_REFLECT)

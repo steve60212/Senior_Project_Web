@@ -3,5 +3,3 @@ tensorflow
 opencv-python
 numpy
 transformers
-gradio
-tensorflow-addons

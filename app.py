@@ -103,7 +103,7 @@ example_imgs = [[["Light Enhance"],'/content/Senior_Project_Web/example_imgs/lig
                 [["Denoising"], '/content/Senior_Project_Web/example_imgs/denoing_example1.png']
 ]
 
-example_vids = [[["Super Resolution", "Denoising"], '/content/Senior_Project_Web/example_vids/superRes_example1.mp4']]
+example_vids = [[["Super Resolution"], '/content/Senior_Project_Web/example_vids/superRes_example1.mp4']]
 
 lightEnhance_model = tf.keras.models.load_model("/content/Senior_Project_Web/lightEnhance_testModel.keras", compile=False)
 superRes_model = tf.keras.models.load_model("/content/Senior_Project_Web/superRes_testModel.keras", compile=False)

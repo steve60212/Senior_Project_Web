@@ -87,7 +87,7 @@ def vid_infer(select_service, input_vid):
     for idx, enhance_frame in enumerate(enhance_batch_frame):
         enhance_frame = postprocess_image(enhance_frame, h, w, type="frame")
         enhance_vid.write(cv2.cvtColor(enhance_frame, cv2.COLOR_RGB2BGR))
-        print(str(idx) + '/' + str(frame_count) + ' Complete!')
+        print(str(idx+1) + '/' + str(frame_count) + ' Complete!')
         print()
     batch_frame = []
             

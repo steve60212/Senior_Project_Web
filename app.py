@@ -52,8 +52,8 @@ def infer(img, select_service, batch_size=1):
 #Interface fuction
 def img_infer(select_service, input_img):
     input_img = input_img.convert('RGB')
-    input_img = asarray(input_img)
-    h,w = image.shape[0], image.shape[1]
+    input_img = np.asarray(input_img)
+    h,w = input_img.shape[0], input_img.shape[1]
     preprocessed_img = preprocess_image(input_img, h, w)
     model_output = infer(preprocessed_img, select_service)
     post_processed_image = postprocess_image(model_output, h, w, type="img")

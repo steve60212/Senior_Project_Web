@@ -73,7 +73,6 @@ def vid_infer(select_service, input_vid):
     enhance_vid = initialize_output_vid(original_vid, output_name='enhance_vid.mp4')
 
     batch_frame = []
-    control = -1
     for num in range(int(frame_count)):
         #prepare batch frame
         ret, frame = original_vid.read()
@@ -83,7 +82,7 @@ def vid_infer(select_service, input_vid):
         h,w = frame.shape[0], frame.shape[1]
         batch_frame.append(preprocess_image(frame, h, w))
     #enhance frame on batch
-    enhance_batch_frame = infer(np.vstack(batch_frame), select_service, batch_size=1)
+    enhance_batch_frame = infer(np.vstack(batch_frame), select_service, batch_size=4)
     for idx, enhance_frame in enumerate(enhance_batch_frame):
         enhance_frame = postprocess_image(enhance_frame, h, w, type="frame")
         enhance_vid.write(cv2.cvtColor(enhance_frame, cv2.COLOR_RGB2BGR))
@@ -105,9 +104,9 @@ example_imgs = [[["Light Enhance"],'/content/Senior_Project_Web/example_imgs/lig
 
 example_vids = [[["Super Resolution"], '/content/Senior_Project_Web/example_vids/superRes_example1.mp4']]
 
-lightEnhance_model = tf.keras.models.load_model("/content/Senior_Project_Web/lightEnhance_testModel.keras", compile=False)
-superRes_model = tf.keras.models.load_model("/content/Senior_Project_Web/superRes_testModel.keras", compile=False)
-denoise_model = tf.keras.models.load_model("/content/Senior_Project_Web/denoising_testModel.keras", compile=False)
+lightEnhance_model = tf.keras.models.load_model("/content/Senior_Project_Web/models/lightEnhance_bestModel.keras", compile=False)
+superRes_model = tf.keras.models.load_model("/content/Senior_Project_Web/models/superRes_bestModel.keras", compile=False)
+denoise_model = tf.keras.models.load_model("/content/Senior_Project_Web/models/denoising_bestModel.keras", compile=False)
 
 
 img_iface = gr.Interface(

@@ -66,7 +66,8 @@ def img_infer(select_service, input_img):
     input_img = input_img.convert('RGB')
     input_img = np.asarray(input_img)
     h,w = input_img.shape[0], input_img.shape[1]
-    h = int(h), w = int(w)
+    h = int(h)
+    w = int(w)
     preprocessed_img = preprocess_image(input_img, h, w)
     model_output = infer(preprocessed_img, select_service)
     post_processed_image = postprocess_image(model_output, h, w, type="img", select_service)
@@ -100,7 +101,7 @@ def collect_frames(original_vid):
 
 def write_frame_to_video(enhance_frames, h, w, enhance_vid, select_service):
     for idx, enhance_frame in enumerate(enhance_frames):
-        enhance_frame = postprocess_image(enhance_frame, h, w, type="frame", select_service)
+        enhance_frame = postprocess_image(enhance_frame, h, w, type="frame", select_service=select_service)
         enhance_vid.write(cv2.cvtColor(enhance_frame, cv2.COLOR_RGB2BGR))
     return enhance_vid
 
@@ -110,11 +111,12 @@ def vid_infer(select_service, input_vid):
     enhance_vid = initialize_output_vid(original_vid, output_name='enhance_vid.mp4')
 
     frames, h, w = collect_frames(original_vid)
-    h = int(h), w = int(w)
+    h = int(h)
+    w = int(w)
 
     enhance_frames = infer(np.vstack(frames), select_service, batch_size=4)
 
-    enhance_vid = write_frame_to_video(enhance_frames, h, w, enhance_vid, select_service)
+    enhance_vid = write_frame_to_video(enhance_frames, h, w, enhance_vid, select_service=select_service)
     
     enhance_vid.release()
     original_vid.release()
@@ -129,7 +131,10 @@ example_imgs = [[["Light Enhance"],'/content/Senior_Project_Web/example_imgs/lig
                 [["Denoising"], '/content/Senior_Project_Web/example_imgs/denoing_example1.png']
 ]
 
-example_vids = [[["Super Resolution"], '/content/Senior_Project_Web/example_vids/superRes_example1.mp4']]
+example_vids = [[["Light Enhance"], '/content/Senior_Project_Web/example_vids/lightEnhance_example1.mp4'],
+                [["Super Resolution"], '/content/Senior_Project_Web/example_vids/superRes_example1.mp4'],
+                [["Denoising"], '/content/Senior_Project_Web/example_vids/denoising_example1.mp4']
+]
 
 lightEnhance_model = tf.keras.models.load_model("/content/Senior_Project_Web/models/lightEnhance_bestModel.keras", compile=False)
 superRes_model = tf.keras.models.load_model("/content/Senior_Project_Web/models/superRes_bestModel.keras", compile=False)

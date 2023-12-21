@@ -66,6 +66,7 @@ def img_infer(select_service, input_img):
     input_img = input_img.convert('RGB')
     input_img = np.asarray(input_img)
     h,w = input_img.shape[0], input_img.shape[1]
+    h = int(h), w = int(w)
     preprocessed_img = preprocess_image(input_img, h, w)
     model_output = infer(preprocessed_img, select_service)
     post_processed_image = postprocess_image(model_output, h, w, type="img", select_service)
@@ -109,7 +110,8 @@ def vid_infer(select_service, input_vid):
     enhance_vid = initialize_output_vid(original_vid, output_name='enhance_vid.mp4')
 
     frames, h, w = collect_frames(original_vid)
-    
+    h = int(h), w = int(w)
+
     enhance_frames = infer(np.vstack(frames), select_service, batch_size=4)
 
     enhance_vid = write_frame_to_video(enhance_frames, h, w, enhance_vid, select_service)

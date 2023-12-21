@@ -1,8 +1,3 @@
-import subprocess
-import sys
-subprocess.check_call([sys.executable, "-m", "pip", "install", 'gradio'])
-subprocess.check_call([sys.executable, "-m", "pip", "install", 'tensorflow-addons'])
-
 import tensorflow as tf
 from tensorflow import keras
 import tensorflow_addons as tfa

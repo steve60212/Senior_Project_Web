@@ -320,9 +320,7 @@ class MirNetv2(tf.keras.Model):
         **kwargs
     ):
         super().__init__(*args, **kwargs)
-        self.channels = channels
-        self.channel_factor = channel_factor
-        self.num_mrb_blocks = num_mrb_blocks
+
         self.add_residual_connection = add_residual_connection
 
         self.conv_in = tf.keras.layers.Conv2D(
@@ -355,5 +353,150 @@ class MirNetv2(tf.keras.Model):
         output = self.conv_out(deep_features)
         output = output + inputs if self.add_residual_connection else output
         return output
-    def get_config(self):
-        return {"channels": self.channels, "channel_factor": self.channel_factor, "num_mrb_blocks": self.num_mrb_blocks, "add_residual_connection": self.add_residual_connection}
+
+
+@keras.saving.register_keras_serializable()
+class MirNetv2SuperResVer1(tf.keras.Model):
+    def __init__(
+        self,
+        channels: int,
+        channel_factor: float,
+        num_mrb_blocks: int,
+        add_residual_connection: bool,
+        *args,
+        **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+
+        self.add_residual_connection = add_residual_connection
+
+        self.upsample = tf.keras.layers.UpSampling2D(
+            size=4, interpolation="bilinear"
+        )
+
+        self.conv_in = tf.keras.layers.Conv2D(
+            channels, kernel_size=3, padding="same"
+        )
+
+        self.rrg_block_1 = RecursiveResidualGroup(
+            channels, num_mrb_blocks, channel_factor, groups=1
+        )
+        self.rrg_block_2 = RecursiveResidualGroup(
+            channels, num_mrb_blocks, channel_factor, groups=2
+        )
+        self.rrg_block_3 = RecursiveResidualGroup(
+            channels, num_mrb_blocks, channel_factor, groups=4
+        )
+        self.rrg_block_4 = RecursiveResidualGroup(
+            channels, num_mrb_blocks, channel_factor, groups=4
+        )
+
+        self.conv_out = tf.keras.layers.Conv2D(
+            3, kernel_size=3, padding="same"
+        )
+    def call(self, inputs, training=None, mask=None):
+        inputs = self.upsample(inputs)
+        shallow_features = self.conv_in(inputs)
+        deep_features = self.rrg_block_1(shallow_features)
+        deep_features = self.rrg_block_2(deep_features)
+        deep_features = self.rrg_block_3(deep_features)
+        deep_features = self.rrg_block_4(deep_features)
+        output = self.conv_out(deep_features)
+        output = output + inputs if self.add_residual_connection else output
+        return output
+
+
+class UpScale2X(tf.keras.layers.Layer):
+  def __init__(self, channels: int, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+
+    self.upSampling2D = keras.layers.UpSampling2D(
+        size=2, interpolation='bilinear'
+    )
+
+    self.conv2D = keras.layers.Conv2D(
+        channels, kernel_size=3, strides=1, padding='same'
+    )
+
+    self.leaky_relu = tf.keras.layers.LeakyReLU(alpha=0.2)
+
+  def call(self, input, *args, **kwargs):
+    x = self.upSampling2D(input)
+    x = self.conv2D(x)
+    x = self.leaky_relu(x)
+    return x
+
+
+class HRConv(tf.keras.layers.Layer):
+  def __init__(self, channels: int, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+
+    self.Conv2D = keras.layers.Conv2D(
+        channels, kernel_size=3, strides=1, padding='same'
+    )
+
+    self.leaky_relu = tf.keras.layers.LeakyReLU(alpha=0.2)
+
+  def call(self, input, *args, **kwargs):
+    x = self.Conv2D(input)
+    x = self.leaky_relu(x)
+    return x
+
+
+#use ESRGAN UpSampling2D structure
+@keras.saving.register_keras_serializable()
+class MirNetv2SuperResVer2(tf.keras.Model):
+    def __init__(
+        self,
+        channels: int,
+        channel_factor: float,
+        num_mrb_blocks: int,
+        add_residual_connection: bool,
+        *args,
+        **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+
+        self.add_residual_connection = add_residual_connection
+
+        self.conv_in = tf.keras.layers.Conv2D(
+            channels, kernel_size=3, padding="same"
+        )
+
+        self.rrg_block_1 = RecursiveResidualGroup(
+            channels, num_mrb_blocks, channel_factor, groups=1
+        )
+        self.rrg_block_2 = RecursiveResidualGroup(
+            channels, num_mrb_blocks, channel_factor, groups=2
+        )
+        self.rrg_block_3 = RecursiveResidualGroup(
+            channels, num_mrb_blocks, channel_factor, groups=4
+        )
+        self.rrg_block_4 = RecursiveResidualGroup(
+            channels, num_mrb_blocks, channel_factor, groups=4
+        )
+
+        self.upScale2X_1 = UpScale2X(channels)
+        self.upScale2X_2 = UpScale2X(channels)
+
+        self.HRConv = HRConv(channels)
+
+        self.conv_out = tf.keras.layers.Conv2D(
+            3, kernel_size=3, padding="same"
+        )
+    def call(self, inputs, training=None, mask=None):
+        shallow_features = self.conv_in(inputs)
+
+        deep_features = self.rrg_block_1(shallow_features)
+        deep_features = self.rrg_block_2(deep_features)
+        deep_features = self.rrg_block_3(deep_features)
+        deep_features = self.rrg_block_4(deep_features)
+
+        upScale2X = self.upScale2X_1(deep_features)
+        upScale4X = self.upScale2X_2(upScale2X)
+
+        output = self.conv_out(self.HRConv(upScale4X))
+        output = output + inputs if self.add_residual_connection else output
+        return output
+    #def get_config(self):
+    #    return {"channels": self.channels, "channel_factor": self.channel_factor, "num_mrb_blocks": self.num_mrb_blocks, "add_residual_connection": self.add_residual_connection}

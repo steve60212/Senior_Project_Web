@@ -67,32 +67,38 @@ def initialize_output_vid(original_vid, output_name):
   height = original_vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
   return cv2.VideoWriter(output_name, fourcc, fps, (int(width), int(height)))
 
-def vid_infer(select_service, input_vid):
-    original_vid = cv2.VideoCapture(input_vid)
+def collect_frames(original_vid):
+    w = original_vid.get(cv2.CAP_PROP_FRAME_WIDTH)
+    h = original_vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
     frame_count = original_vid.get(cv2.CAP_PROP_FRAME_COUNT)
-    enhance_vid = initialize_output_vid(original_vid, output_name='enhance_vid.mp4')
-
-    batch_frame = []
+    frames = []
     for num in range(int(frame_count)):
         #prepare batch frame
         ret, frame = original_vid.read()
         if not ret:
             break
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        h,w = frame.shape[0], frame.shape[1]
-        batch_frame.append(preprocess_image(frame, h, w))
-    #enhance frame on batch
-    enhance_batch_frame = infer(np.vstack(batch_frame), select_service, batch_size=4)
-    for idx, enhance_frame in enumerate(enhance_batch_frame):
+        frames.append(preprocess_image(frame, h, w))
+    return frames, h, w
+
+def write_frame_to_video(enhance_frames, h, w, enhance_vid):
+    for idx, enhance_frame in enumerate(enhance_frames):
         enhance_frame = postprocess_image(enhance_frame, h, w, type="frame")
         enhance_vid.write(cv2.cvtColor(enhance_frame, cv2.COLOR_RGB2BGR))
-        print(str(idx+1) + '/' + str(frame_count) + ' Complete!')
-        print()
-    batch_frame = []
-            
+    return enhance_vid
+
+def vid_infer(select_service, input_vid):
+    original_vid = cv2.VideoCapture(input_vid)
+    enhance_vid = initialize_output_vid(original_vid, output_name='enhance_vid.mp4')
+
+    frames, h, w = collect_frames(original_vid)
+    
+    enhance_frames = infer(np.vstack(frames), select_service, batch_size=4)
+
+    enhance_vid = write_frame_to_video(enhance_frames, h, w, enhance_vid)
+    
     enhance_vid.release()
     original_vid.release()
-    cv2.destroyAllWindows()
     return f"enhance_vid.mp4"
 
 

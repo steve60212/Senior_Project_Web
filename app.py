@@ -12,7 +12,7 @@ def pad_img(image, h, w):
   H,W = (h//img_multiple_of+1)*img_multiple_of, (w//img_multiple_of+1)*img_multiple_of
   padh = H-h if h%img_multiple_of!=0 else 0
   padw = W-w if w%img_multiple_of!=0 else 0
-  image = cv2.copyMakeBorder(image, 0,padh,0,padw, cv2.BORDER_REFLECT)
+  image = cv2.copyMakeBorder(image, 0,int(padh),0,int(padw), cv2.BORDER_REFLECT)
   return image
 
 

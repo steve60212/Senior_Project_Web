@@ -99,13 +99,6 @@ def collect_frames(original_vid):
     return frames, h, w
 
 
-def write_frame_to_video(enhance_frames, h, w, enhance_vid, select_service):
-    for idx, enhance_frame in enumerate(enhance_frames):
-        enhance_frame = postprocess_image(enhance_frame, h, w, type="frame", select_service=select_service)
-        enhance_vid.write(cv2.cvtColor(enhance_frame, cv2.COLOR_RGB2BGR))
-    return enhance_vid
-
-
 def vid_infer(select_service, input_vid):
     original_vid = cv2.VideoCapture(input_vid)
     enhance_vid = initialize_output_vid(original_vid, output_name='enhance_vid.mp4')
@@ -116,7 +109,9 @@ def vid_infer(select_service, input_vid):
 
     enhance_frames = infer(np.vstack(frames), select_service, batch_size=4)
 
-    enhance_vid = write_frame_to_video(enhance_frames, h, w, enhance_vid, select_service)
+    for idx, enhance_frame in enumerate(enhance_frames):
+        enhance_frame = postprocess_image(enhance_frame, h, w, type="frame", select_service=select_service)
+        enhance_vid.write(cv2.cvtColor(enhance_frame, cv2.COLOR_RGB2BGR))
     
     enhance_vid.release()
     original_vid.release()

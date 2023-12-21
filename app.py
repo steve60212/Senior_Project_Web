@@ -6,20 +6,25 @@ import cv2
 from PIL import Image
 import gradio as gr
 
+def pad_img(image, h, w):
+  img_multiple_of = 4
+  h,w = h, w
+  H,W = (h//img_multiple_of+1)*img_multiple_of, (w//img_multiple_of+1)*img_multiple_of
+  padh = H-h if h%img_multiple_of!=0 else 0
+  padw = W-w if w%img_multiple_of!=0 else 0
+  image = cv2.copyMakeBorder(image, 0,padh,0,padw, cv2.BORDER_REFLECT)
+  return image
+
 
 def preprocess_image(image, h, w):
-    img_multiple_of = 4
-    h,w = h, w
-    H,W = (h//img_multiple_of+1)*img_multiple_of, (w//img_multiple_of+1)*img_multiple_of
-    padh = H-h if h%img_multiple_of!=0 else 0
-    padw = W-w if w%img_multiple_of!=0 else 0
-    image = cv2.copyMakeBorder(image, 0,padh,0,padw, cv2.BORDER_REFLECT)
     image = tf.keras.preprocessing.image.img_to_array(image)
+    image = pad_img(image, h, w)
     image = image.astype("float32") / 255.0
     image = np.expand_dims(image, axis=0)
     return image
 
-def postprocess_image(model_output, h, w, type):
+
+def postprocess_image(model_output, h, w, type, select_service):
     tf.experimental.numpy.experimental_enable_numpy_behavior(prefer_float32=True)
     model_output = model_output * 255.0
     model_output = model_output.clip(0, 255)
@@ -27,15 +32,22 @@ def postprocess_image(model_output, h, w, type):
         image = model_output[0].reshape(
             (np.shape(model_output)[1], np.shape(model_output)[2], 3)
         )
-        image = image[:h,:w,:]
+        if "Super Resolution" in select_service:
+            image = image[:4*h,:4*w,:]
+        else:
+            image = image[:h,:w,:]
         image = Image.fromarray(np.uint8(image))
     elif type == "frame":
         image = model_output.reshape(
             (np.shape(model_output)[0], np.shape(model_output)[1], 3)
         )
-        image = image[:h,:w,:]
+        if "Super Resolution" in select_service:
+            image = image[:4*h,:4*w,:]
+        else:
+            image = image[:h,:w,:]
         image = np.uint8(image)
     return image
+
 
 def infer(img, select_service, batch_size=1):
     if "Light Enhance" in select_service:
@@ -56,8 +68,10 @@ def img_infer(select_service, input_img):
     h,w = input_img.shape[0], input_img.shape[1]
     preprocessed_img = preprocess_image(input_img, h, w)
     model_output = infer(preprocessed_img, select_service)
-    post_processed_image = postprocess_image(model_output, h, w, type="img")
+    post_processed_image = postprocess_image(model_output, h, w, type="img", select_service)
     return post_processed_image
+
+
 
 
 def initialize_output_vid(original_vid, output_name):
@@ -66,6 +80,7 @@ def initialize_output_vid(original_vid, output_name):
   width = original_vid.get(cv2.CAP_PROP_FRAME_WIDTH)
   height = original_vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
   return cv2.VideoWriter(output_name, fourcc, fps, (int(width), int(height)))
+
 
 def collect_frames(original_vid):
     w = original_vid.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -81,11 +96,13 @@ def collect_frames(original_vid):
         frames.append(preprocess_image(frame, h, w))
     return frames, h, w
 
-def write_frame_to_video(enhance_frames, h, w, enhance_vid):
+
+def write_frame_to_video(enhance_frames, h, w, enhance_vid, select_service):
     for idx, enhance_frame in enumerate(enhance_frames):
-        enhance_frame = postprocess_image(enhance_frame, h, w, type="frame")
+        enhance_frame = postprocess_image(enhance_frame, h, w, type="frame", select_service)
         enhance_vid.write(cv2.cvtColor(enhance_frame, cv2.COLOR_RGB2BGR))
     return enhance_vid
+
 
 def vid_infer(select_service, input_vid):
     original_vid = cv2.VideoCapture(input_vid)
@@ -95,11 +112,13 @@ def vid_infer(select_service, input_vid):
     
     enhance_frames = infer(np.vstack(frames), select_service, batch_size=4)
 
-    enhance_vid = write_frame_to_video(enhance_frames, h, w, enhance_vid)
+    enhance_vid = write_frame_to_video(enhance_frames, h, w, enhance_vid, select_service)
     
     enhance_vid.release()
     original_vid.release()
     return f"enhance_vid.mp4"
+
+
 
 
 

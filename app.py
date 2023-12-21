@@ -70,7 +70,7 @@ def img_infer(select_service, input_img):
     w = int(w)
     preprocessed_img = preprocess_image(input_img, h, w)
     model_output = infer(preprocessed_img, select_service)
-    post_processed_image = postprocess_image(model_output, h, w, type="img", select_service)
+    post_processed_image = postprocess_image(model_output, h, w, type="img", select_service=select_service)
     return post_processed_image
 
 
@@ -116,7 +116,7 @@ def vid_infer(select_service, input_vid):
 
     enhance_frames = infer(np.vstack(frames), select_service, batch_size=4)
 
-    enhance_vid = write_frame_to_video(enhance_frames, h, w, enhance_vid, select_service=select_service)
+    enhance_vid = write_frame_to_video(enhance_frames, h, w, enhance_vid, select_service)
     
     enhance_vid.release()
     original_vid.release()
